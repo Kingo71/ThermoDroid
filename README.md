@@ -1,2 +1,2 @@
 # ThermoDroid
-Arduino Controlled Thermostat with Android remote controll
+Arduino Controlled Thermostat with Android remote control
