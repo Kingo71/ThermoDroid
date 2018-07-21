@@ -79,16 +79,22 @@ SoftwareSerial BtSerial(bluetoothRX, bluetoothTX); // RX, TX
 
 SerialCommand cmdTherm(BtSerial);
 
+// OLED display TWI address
+#define OLED_ADDR   0x3C
 
-// make a cute degree symbol
+// reset pin not used on 4-pin OLED module
+Adafruit_SSD1306 display(-1);  // -1 = no reset pin
 
-uint8_t degree[8] = { 140,146,146,140,128,128,128,128 };
+// 128 x 64 pixel display
+#if (SSD1306_LCDHEIGHT != 64)
+#error("Height incorrect, please fix Adafruit_SSD1306.h!");
+#endif
 
 Button button = Button(Button1, BUTTON_PULLUP);
 
 void onPress(Button& b) {
 	clockmenu = !clockmenu;
-	lcd.clear();
+	// lcd.clear();
 }
 
 void setup()
@@ -107,9 +113,11 @@ void setup()
 	if (timeStatus() != timeSet) Serial << F(" FAIL!");
 	Serial << endl;
 
-	// Imposta il valore di righe e colonne del display LCD
-	lcd.begin(16, 2);
-	lcd.createChar(0, degree);
+	// initialize and clear display
+	display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
+	display.clearDisplay();
+	display.display();
+
 	pinMode(ledPin1, OUTPUT);
 	pinMode(ledPin2, OUTPUT);
 
