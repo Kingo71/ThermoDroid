@@ -12,8 +12,6 @@
 
 #include <Button.h>
 
-#include <LiquidCrystal_I2C.h>
-
 #include <Streaming.h>
 
 #include <DS3232RTC.h>
