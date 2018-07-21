@@ -4,13 +4,13 @@
  Author:	Kingo
 */
 
-#include <Adafruit_SSD1306.h>
-
 #include <SerialCommand.h>
 
 #include <OneWire.h>
 
 #include <DallasTemperature.h>
+
+#include <LiquidCrystal_I2C.h>
 
 #include <Button.h>
 
