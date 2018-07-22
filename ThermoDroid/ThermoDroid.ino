@@ -61,12 +61,6 @@ unsigned long lastmillis = 0;
 
 time_t t;
 
-// set the LCD address to 0x3f for a 16 chars 2 line display
-// Set the pins on the I2C chip used for LCD connections:
-//                    addr, en,rw,rs,d4,d5,d6,d7,bl,blpol
-
-// LiquidCrystal_I2C lcd(0x3f, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
-
 SoftwareSerial BtSerial(bluetoothRX, bluetoothTX); // RX, TX
 
 SerialCommand cmdTherm(BtSerial);
