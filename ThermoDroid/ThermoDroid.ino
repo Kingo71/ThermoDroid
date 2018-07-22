@@ -4,24 +4,16 @@
  Author:	Kingo
 */
 
+#include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-
 #include <SerialCommand.h>
-
 #include <OneWire.h>
-
 #include <DallasTemperature.h>
-
 #include <Button.h>
-
 #include <Streaming.h>
-
 #include <DS3232RTC.h>
-
 #include <Time.h>
-
 #include <TimeLib.h>
-
 #include <SoftwareSerial.h>
 
 #define ONE_WIRE_BUS_1 2
@@ -94,7 +86,7 @@ Button button = Button(Button1, BUTTON_PULLUP);
 
 void onPress(Button& b) {
 	clockmenu = !clockmenu;
-	// lcd.clear();
+	// display.clearDisplay();
 }
 
 void setup()
@@ -121,18 +113,8 @@ void setup()
 	pinMode(ledPin1, OUTPUT);
 	pinMode(ledPin2, OUTPUT);
 
-	// ------- Quick 3 blinks of backlight  -------------
-
-	for (int i = 0; i< 3; i++)
-	{
-		lcd.backlight();
-		delay(250);
-		lcd.noBacklight();
-		delay(250);
-	}
-	lcd.backlight(); // finish with backlight on 
-
-					 // Setup callbacks for SerialCommand commands
+	
+	// Setup callbacks for SerialCommand commands
 	cmdTherm.addCommand("<T", syncpctime);          // Syc time
 	cmdTherm.addCommand("gtemp", gettemp);         // Get current Temperature
 	cmdTherm.addDefaultHandler(unrecognized);      // Handler for command that isn't matched  (says "What?")
@@ -147,17 +129,17 @@ void loop()
 	static time_t tLast;
 	t = now();
 
-	lcd.setCursor(0, 1); // bottom left
-	lcd.print(hour(t));
-	lcd.print(":");
-	lcd.print(minute(t));
-	lcd.print(":");
-	lcd.print(second(t));
-	lcd.setCursor(9, 1);
-	lcd.print(months[month(t) - 1]);
-	lcd.print(" ");
+	display.setCursor(0, 1); // bottom left
+	display.print(hour(t));
+	display.print(":");
+	display.print(minute(t));
+	display.print(":");
+	display.print(second(t));
+	display.setCursor(9, 1);
+	display.print(months[month(t) - 1]);
+	display.print(" ");
 	String anno = String(year(t));
-	lcd.print(anno.substring(4, 2));
+	display.print(anno.substring(4, 2));
 
 
 	if ((millis() - clientlastmillis) >= bttimeout && client == true)
@@ -169,15 +151,15 @@ void loop()
 	{
 		sensor_inhouse.requestTemperatures();
 		tempril = sensor_inhouse.getTempCByIndex(0);
-		lcd.clear();
-		lcd.setCursor(0, 0); // upper left
-		lcd.print("Temp:");
-		lcd.print(int(tempril));
-		lcd.write((byte)0);
-		lcd.setCursor(9, 0);
-		lcd.print(days[weekday(t) - 1]);
-		lcd.print(" ");
-		lcd.print(day(t));
+		display.clearDisplay();
+		display.setCursor(0, 0); // upper left
+		display.print("Temp:");
+		display.print(int(tempril));
+		display.write((byte)0);
+		display.setCursor(9, 0);
+		display.print(days[weekday(t) - 1]);
+		display.print(" ");
+		display.print(day(t));
 
 
 
