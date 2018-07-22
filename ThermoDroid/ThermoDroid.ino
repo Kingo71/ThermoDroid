@@ -109,6 +109,8 @@ void setup()
 	display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
 	display.clearDisplay();
 	display.display();
+	display.setTextSize(1);
+	display.setTextColor(WHITE);
 
 	pinMode(ledPin1, OUTPUT);
 	pinMode(ledPin2, OUTPUT);
@@ -140,6 +142,7 @@ void loop()
 	display.print(" ");
 	String anno = String(year(t));
 	display.print(anno.substring(4, 2));
+	display.display();
 
 
 	if ((millis() - clientlastmillis) >= bttimeout && client == true)
@@ -160,6 +163,7 @@ void loop()
 		display.print(days[weekday(t) - 1]);
 		display.print(" ");
 		display.print(day(t));
+		display.display();
 
 
 
