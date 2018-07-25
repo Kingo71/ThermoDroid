@@ -263,3 +263,6 @@ __pycache__/
 # Visual Micro config
 __vm/
 __vm/**
+*.vcxproj
+*.filters
+
