@@ -15,9 +15,6 @@
 
 #define ONE_WIRE_BUS_1 2
 
-/*  code to process time sync messages from the serial port   */
-#define TIME_HEADER  "T"   // Header tag for serial time sync message
-
 OneWire oneWire_in(ONE_WIRE_BUS_1);
 DallasTemperature sensor_inhouse(&oneWire_in);
 
@@ -36,10 +33,7 @@ int alarmhightemp = 25;
 int alarmlowtemp = 10;
 int ledstat1 = LOW;
 int ledstat2 = LOW;
-int pos = 0;
 int interval = 1000;
-int xore;
-int xminuti;
 bool LED1 = false;
 bool LED2 = false;
 bool hightemp = false;
@@ -60,7 +54,7 @@ Adafruit_SSD1306 display(-1);  // -1 = no reset pin
 #error("Height incorrect, please fix Adafruit_SSD1306.h!");
 #endif
 
-unsigned static char temperature_icon16x16[] =
+unsigned char temperature_icon16x16[] =
 {
 	0b00000001, 0b11000000, //        ###      
 	0b00000011, 0b11100000, //       #####     
