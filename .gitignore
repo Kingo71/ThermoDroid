@@ -261,8 +261,8 @@ __pycache__/
 *.pyc
 
 # Visual Micro config
-__vm/
-__vm/**
+ThermoDroid/__vm/
+ThermoDroid/__vm/**
 *.vcxproj
 *.filters
 
