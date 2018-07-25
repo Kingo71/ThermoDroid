@@ -261,4 +261,4 @@ __pycache__/
 *.pyc
 
 # Visual Micro config
-__vm/
+__vm/**
