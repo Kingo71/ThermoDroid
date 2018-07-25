@@ -261,5 +261,6 @@ __pycache__/
 *.pyc
 
 # Visual Micro config
+Thermodroid/__vm/**
 __vm/
 __vm/**
