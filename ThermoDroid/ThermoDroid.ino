@@ -38,14 +38,9 @@ DallasTemperature sensor_inhouse(&oneWire_in);
 #define ledPin1 9
 #define ledPin2 10
 #define Button1 8 
+
 // Variables declaration
 
-String incomingstring;
-String par1;
-String par2;
-String cmd;
-String days[7] = { "Sun","Mon","Tue","Wen","Thu","Fri","Sat" };
-String months[12] = { "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec" };
 float tempril;
 int alarmhightemp = 25;
 int alarmlowtemp = 10;
@@ -146,7 +141,7 @@ void loop()
 	lcd.print(":");
 	lcd.print(second(t));
 	lcd.setCursor(9, 1);
-	lcd.print(months[month(t) - 1]);
+	lcd.print(monthShortStr(month(t)));
 	lcd.print(" ");
 	String anno = String(year(t));
 	lcd.print(anno.substring(4, 2));
@@ -167,7 +162,7 @@ void loop()
 		lcd.print(int(tempril));
 		lcd.write((byte)0);
 		lcd.setCursor(9, 0);
-		lcd.print(days[weekday(t) - 1]);
+		lcd.print(dayShortStr(weekday(t)));
 		lcd.print(" ");
 		lcd.print(day(t));
 
@@ -276,99 +271,6 @@ void gettemp()
 
 }
 
-void decodecommand(String command, String param1, String param2)
-
-// Decode and execute command
-
-{
-
-	int cmdindex;
-	int totalcmd = 3;
-	String cmdarray[] = { "gtemp:","tmplw:","tmphg:","cmdhl:" }; // elenco comandi
-	String cmdhelp[] = { " Return temperature"," Show or set low temperature alarm"," Show or set high temperature alarm", " Show this help" };  // Help comandi
-	cmd = "none";
-	for (cmdindex = 0; cmdindex <= totalcmd; cmdindex++)
-	{
-		if (command == cmdarray[cmdindex]) break;
-		else if (cmdindex == totalcmd) return;
-	}
-	switch (cmdindex)
-	{
-	case 0:
-	{
-		switch (interface)
-		{
-		case 0:
-			Serial.print("Temperatura Rilevata:");
-			Serial.print(tempril);
-			Serial.println(" C");
-			break;
-		case 1:
-			BtSerial.print("Temperatura Rilevata:");
-			BtSerial.print(tempril);
-			BtSerial.println(" C");
-			break;
-		}
-	}
-	break;
-	case 1:
-
-		if (param1.toInt() > 0)
-		{
-			LED1 = true;
-			alarmlowtemp = param1.toInt();
-			BtSerial.print("Allarme temperatura minima:");
-			BtSerial.print(alarmlowtemp);
-			BtSerial.println(" C");
-		}
-		else if (param1 != "")
-		{
-			LED1 = false;
-			BtSerial.println("Allarme temperatura minima disattivato");
-		}
-		else
-		{
-			BtSerial.print("Allarme temperatura minima:");
-			BtSerial.print(alarmlowtemp);
-			BtSerial.print(" C , Stato: ");
-			if (LED1) BtSerial.println("ATTIVATO");
-			else BtSerial.println("Disattivato");
-		}
-		break;
-	case 2:
-		if (param1.toInt() > 0)
-		{
-			LED2 = true;
-			alarmhightemp = param1.toInt();
-			BtSerial.print("Allarme temperatura massima:");
-			BtSerial.print(alarmhightemp);
-			BtSerial.println(" C");
-		}
-		else if (param1 != "")
-		{
-			LED2 = false;
-			BtSerial.println("Allarme temperatura massima disattivato");
-		}
-		else
-		{
-			BtSerial.print("Allarme temperatura massima:");
-			BtSerial.print(alarmhightemp);
-			BtSerial.print(" C , Stato: ");
-			if (LED2) BtSerial.println("ATTIVATO");
-			else BtSerial.println("Disattivato");
-		}
-		break;
-	case 3:
-		BtSerial.println("Elenco comandi disponibili:");
-		for (cmdindex = 0; cmdindex <= totalcmd; cmdindex++)
-		{
-			BtSerial.print(cmdarray[cmdindex]);
-			BtSerial.println(cmdhelp[cmdindex]);
-		}
-		break;
-
-	}
-}
 
 
 
