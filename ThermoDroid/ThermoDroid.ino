@@ -20,6 +20,12 @@
 /*  code to process time sync messages from the serial port   */
 #define TIME_HEADER  "T"   // Header tag for serial time sync message
 
+const int timeZone = 2;     // Central European Time
+							//const int timeZone = -5;  // Eastern Standard Time (USA)
+							//const int timeZone = -4;  // Eastern Daylight Time (USA)
+							//const int timeZone = -8;  // Pacific Standard Time (USA)
+							//const int timeZone = -7;  // Pacific Daylight Time (USA)
+
 
 OneWire oneWire_in(ONE_WIRE_BUS_1);
 DallasTemperature sensor_inhouse(&oneWire_in);
@@ -77,6 +83,7 @@ void setup()
 	Serial << F("RTC Sync");
 	if (timeStatus() != timeSet) Serial << F(" FAIL!");
 	Serial << endl;
+	adjustTime(2 * SECS_PER_HOUR);
 
 #if RST_PIN >= 0
 	display.begin(&Adafruit128x64, I2C_ADDRESS, RST_PIN);
@@ -99,30 +106,17 @@ void setup()
 			
 
 	readTemp();
+	printTime();
 	printDate();
-
+	
 }
 
 
 
 void loop()
 {
-	t = now();
-
-	display.set2X();
-	display.setCursor(15, 2); // bottom left
-	if (hour(t)<10) display.print("0");
-	display.print(hour(t));
-	display.print(":");
-	if (minute(t)<10) display.print("0");
-	display.print(minute(t));
-	display.print(":");
-	if (second(t)<10) display.print("0");
-	display.println(second(t));
-	display.setCursor(0, 6);
-	display.print("Temp : ");
-	display.print(int(tempril));
-	display.println((char)128);
+	
+	printTime();
 	
 
 	if ((millis() - lastmillis) >= interval)
@@ -168,12 +162,30 @@ void loop()
 	digitalWrite(ledPin2, ledstat2);
 
 	cmdTherm.readSerial();
-
+	
 }
 
 
 // Functions --------------------------------
+void printTime(){
+	
+	t = now();
+	display.set2X();
+	display.setCursor(15, 2); // bottom left
+	if (hour(t)<10) display.print("0");
+	display.print(hour(t));
+	display.print(":");
+	if (minute(t)<10) display.print("0");
+	display.print(minute(t));
+	display.print(":");
+	if (second(t)<10) display.print("0");
+	display.println(second(t));
+	display.setCursor(0, 6);
+	display.print("Temp : ");
+	display.print(int(tempril));
+	display.println((char)128);
 
+}
 
 void printDate() {
 
@@ -185,7 +197,6 @@ void printDate() {
 	if (day(t)<10) display.print("0");
 	display.print(day(t));
 	display.print("/");
-	//display.print(months[month(t) - 1]);
 	display.print(monthShortStr(month(t)));
 	display.print("/");
 	display.print(year(t));
@@ -196,7 +207,7 @@ void readTemp() {
 
 	sensor_inhouse.requestTemperatures();
 	tempril = sensor_inhouse.getTempCByIndex(0);
-
+	//tempril = RTC.temperature() / 4.0;
 }
 
 
@@ -225,7 +236,7 @@ void syncpctime()
 		Serial.println(arg);
 		time_t t = aNumber;
 		if (t != 0) {
-			t = t + 3600;
+			t = t + ( timeZone * SECS_PER_HOUR);
 			RTC.set(t);   // set the RTC and the system time to the received value
 			setTime(t);
 			Serial.println("Sync succed...");
