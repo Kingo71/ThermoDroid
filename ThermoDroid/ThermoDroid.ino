@@ -4,6 +4,7 @@
  Author:	Kingo
 */
 
+#include <Button.h>
 #include <SoftwareSerial.h>
 #include <SerialCommand.h>
 #include <SSD1306AsciiWire.h>
@@ -14,6 +15,7 @@
 #include <DS3232RTC.h>
 #include <Time.h>
 #include <TimeLib.h>
+
 
 #define ONE_WIRE_BUS_1 2
 
@@ -27,8 +29,6 @@ const int timeZone = 2;     // Central European Time
 							//const int timeZone = -7;  // Pacific Daylight Time (USA)
 
 
-OneWire oneWire_in(ONE_WIRE_BUS_1);
-DallasTemperature sensor_inhouse(&oneWire_in);
 
 // PINS
 #define bluetoothRX 11 // RX Pin
@@ -36,8 +36,14 @@ DallasTemperature sensor_inhouse(&oneWire_in);
 #define ledPin1 9
 #define ledPin2 10
 #define Button1 8 
-// Variables declaration
 
+
+OneWire oneWire_in(ONE_WIRE_BUS_1);
+DallasTemperature sensor_inhouse(&oneWire_in);
+Button button = Button(Button1, BUTTON_PULLUP);
+
+
+// Variables declaration
 
 float tempril;
 int alarmhightemp = 25;
@@ -45,12 +51,14 @@ int alarmlowtemp = 10;
 int ledstat1 = LOW;
 int ledstat2 = LOW;
 int interval = 10000;
+int blinkTime = 1000;
 bool LED1 = false;
 bool LED2 = false;
 bool hightemp = false;
 bool lowtemp = false;
 bool blink = false;
 unsigned long lastmillis = 0;
+unsigned long lastBlink = 0;
 static time_t tLast;
 
 time_t t;
@@ -75,6 +83,7 @@ void setup()
 	Serial.begin(115200);
 	BtSerial.begin(9600);
 	sensor_inhouse.begin();
+		
 	Serial.println(year(RTC.get()));
 	if (year(RTC.get()) < 2015) Serial.println(F(__TIME__));
 	//setSyncProvider() causes the Time library to synchronize with the
@@ -118,12 +127,23 @@ void loop()
 	
 	printTime();
 	
+	if (button.uniquePress()) {
+		
+		LED1 = !LED1;
+		LED2 = !LED2;
+	}
 
 	if ((millis() - lastmillis) >= interval)
 	{
-		
+
 		readTemp();
 		printDate();
+		lastmillis = millis();
+
+	}
+
+	if ((millis() - lastBlink) >= blinkTime)
+	{
 		
 		if (t != tLast) {
 			tLast = t;
@@ -136,7 +156,7 @@ void loop()
 		else lowtemp = false;
 		if (tempril > alarmhightemp) hightemp = true;
 		else hightemp = false;
-		if (LED1 &&lowtemp && ledstat1 == LOW)
+		if (LED1 && lowtemp && ledstat1 == LOW)
 		{
 			ledstat1 = HIGH;
 		}
@@ -153,7 +173,7 @@ void loop()
 			ledstat2 = LOW;
 		}
 
-		lastmillis = millis();
+		lastBlink = millis();
 		blink = !blink;
 
 	}
