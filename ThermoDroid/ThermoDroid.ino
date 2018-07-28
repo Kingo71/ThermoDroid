@@ -4,8 +4,10 @@
  Author:	Kingo
 */
 
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <SoftwareSerial.h>
+#include <SerialCommand.h>
+#include <SSD1306AsciiWire.h>
+#include <SSD1306Ascii.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <Streaming.h>
@@ -14,6 +16,10 @@
 #include <TimeLib.h>
 
 #define ONE_WIRE_BUS_1 2
+
+/*  code to process time sync messages from the serial port   */
+#define TIME_HEADER  "T"   // Header tag for serial time sync message
+
 
 OneWire oneWire_in(ONE_WIRE_BUS_1);
 DallasTemperature sensor_inhouse(&oneWire_in);
@@ -27,52 +33,33 @@ DallasTemperature sensor_inhouse(&oneWire_in);
 // Variables declaration
 
 
-String days[7] = { "Sun","Mon","Tue","Wed","Thu","Fri","Sat" };
 float tempril;
 int alarmhightemp = 25;
 int alarmlowtemp = 10;
 int ledstat1 = LOW;
 int ledstat2 = LOW;
-int interval = 1000;
+int interval = 10000;
 bool LED1 = false;
 bool LED2 = false;
 bool hightemp = false;
 bool lowtemp = false;
 bool blink = false;
 unsigned long lastmillis = 0;
+static time_t tLast;
 
 time_t t;
 
-// OLED display TWI address
-#define OLED_ADDR   0x3C
+// 0X3C+SA0 - 0x3C or 0x3D
+#define I2C_ADDRESS 0x3C
 
-// reset pin not used on 4-pin OLED module
-Adafruit_SSD1306 display(-1);  // -1 = no reset pin
+// Define proper RST_PIN if required.
+#define RST_PIN -1
 
-// 128 x 64 pixel display
-#if (SSD1306_LCDHEIGHT != 64)
-#error("Height incorrect, please fix Adafruit_SSD1306.h!");
-#endif
+SoftwareSerial BtSerial(bluetoothRX, bluetoothTX); // RX, TX
 
-unsigned char temperature_icon16x16[] =
-{
-	0b00000001, 0b11000000, //        ###      
-	0b00000011, 0b11100000, //       #####     
-	0b00000111, 0b00100000, //      ###  #     
-	0b00000111, 0b11100000, //      ######     
-	0b00000111, 0b00100000, //      ###  #     
-	0b00000111, 0b11100000, //      ######     
-	0b00000111, 0b00100000, //      ###  #     
-	0b00000111, 0b11100000, //      ######     
-	0b00000111, 0b00100000, //      ###  #     
-	0b00001111, 0b11110000, //     ########    
-	0b00011111, 0b11111000, //    ##########   
-	0b00011111, 0b11111000, //    ##########   
-	0b00011111, 0b11111000, //    ##########   
-	0b00011111, 0b11111000, //    ##########   
-	0b00001111, 0b11110000, //     ########    
-	0b00000111, 0b11100000, //      ######     
-};
+SerialCommand cmdTherm(BtSerial);
+
+SSD1306AsciiWire display;
 
 
 void setup()
@@ -80,7 +67,9 @@ void setup()
 
 	// Start up the library
 	Serial.begin(115200);
+	BtSerial.begin(9600);
 	sensor_inhouse.begin();
+	Serial.println(year(RTC.get()));
 	if (year(RTC.get()) < 2015) Serial.println(F(__TIME__));
 	//setSyncProvider() causes the Time library to synchronize with the
 	//external RTC by calling RTC.get() every five minutes by default.
@@ -89,17 +78,28 @@ void setup()
 	if (timeStatus() != timeSet) Serial << F(" FAIL!");
 	Serial << endl;
 
-	// initialize and clear display
-	display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
-	display.clearDisplay();
-	display.display();
-	display.setTextSize(1);
-	display.setTextColor(WHITE);
+#if RST_PIN >= 0
+	display.begin(&Adafruit128x64, I2C_ADDRESS, RST_PIN);
+#else // RST_PIN >= 0
+	display.begin(&Adafruit128x64, I2C_ADDRESS);
+#endif // RST_PIN >= 0
+
+	display.setFont(System5x7);
+	display.clear();
 
 	pinMode(ledPin1, OUTPUT);
 	pinMode(ledPin2, OUTPUT);
 
+
+	// Setup callbacks for SerialCommand commands
+	cmdTherm.addCommand("<T", syncpctime);          // Syc time
+	cmdTherm.addCommand("gtemp", gettemp);         // Get current Temperature
+	cmdTherm.addDefaultHandler(unrecognized);      // Handler for command that isn't matched  (says "What?")
 	Serial.println("Ready");
+			
+
+	readTemp();
+	printDate();
 
 }
 
@@ -107,26 +107,10 @@ void setup()
 
 void loop()
 {
-	static time_t tLast;
 	t = now();
-	display.setTextSize(1);
-	display.setCursor(15, 0); // upper left
-	display.print(" ");
-	display.print(days[weekday(t) - 1]);
-	display.print(" ");
-	if (day(t)<10) display.print("0");
-	display.print(day(t));
-	display.print("/");
-	if (month(t)<10) display.print("0");
-	display.print(month(t));
-	display.print("/");
-	display.print(year(t));
-	display.display();
 
-	display.clearDisplay();
-	display.setTextSize(2);
-	display.setTextColor(WHITE);
-	display.setCursor(15, 20); // bottom left
+	display.set2X();
+	display.setCursor(15, 2); // bottom left
 	if (hour(t)<10) display.print("0");
 	display.print(hour(t));
 	display.print(":");
@@ -134,21 +118,23 @@ void loop()
 	display.print(minute(t));
 	display.print(":");
 	if (second(t)<10) display.print("0");
-	display.print(second(t));
-	display.drawBitmap(35, 45, temperature_icon16x16, 16, 16, 1);
-	display.setCursor(52, 45);
+	display.println(second(t));
+	display.setCursor(0, 6);
+	display.print("Temp : ");
 	display.print(int(tempril));
-	display.print((char)247);
-
+	display.println((char)128);
+	
 
 	if ((millis() - lastmillis) >= interval)
 	{
-		sensor_inhouse.requestTemperatures();
-		tempril = sensor_inhouse.getTempCByIndex(0);
+		
+		readTemp();
+		printDate();
 		
 		if (t != tLast) {
 			tLast = t;
-						
+			BtSerial << "<T " << tempril;
+			BtSerial << "\n";
 		}
 
 
@@ -181,12 +167,85 @@ void loop()
 	digitalWrite(ledPin1, ledstat1);
 	digitalWrite(ledPin2, ledstat2);
 
+	cmdTherm.readSerial();
+
+}
+
+
+// Functions --------------------------------
+
+
+void printDate() {
+
+	display.set1X();
+	display.setCursor(10, 0); // upper left
+	display.print(" ");
+	display.print(dayShortStr(weekday(t)));
+	display.print(" ");
+	if (day(t)<10) display.print("0");
+	display.print(day(t));
+	display.print("/");
+	//display.print(months[month(t) - 1]);
+	display.print(monthShortStr(month(t)));
+	display.print("/");
+	display.print(year(t));
 	
+}
+
+void readTemp() {
+
+	sensor_inhouse.requestTemperatures();
+	tempril = sensor_inhouse.getTempCByIndex(0);
 
 }
 
 
 
 
+// This gets set as the default handler, and gets called when no other command matches.
+void unrecognized() {
+	Serial.println("What?");
+}
 
+void syncpctime()
+{
+
+	double aNumber;
+	char *arg;
+	const unsigned long DEFAULT_TIME = 1357041600; // Jan 1 2013 
+
+	Serial.println("We're in processCommand");
+	arg = cmdTherm.next();
+
+	if (arg != NULL) {
+		aNumber = atof(arg);    // Converts a char string to an integer
+		if (aNumber < DEFAULT_TIME) { // check the value is a valid time (greater than Jan 1 2013)
+			return; // time is not valid
+		}
+		Serial.println(arg);
+		time_t t = aNumber;
+		if (t != 0) {
+			t = t + 3600;
+			RTC.set(t);   // set the RTC and the system time to the received value
+			setTime(t);
+			Serial.println("Sync succed...");
+			return;
+		}
+
+	}
+	else {
+		Serial.println("No arguments");
+	}
+
+}
+
+
+void gettemp()
+{
+
+	Serial.print("Temperatura Rilevata:");
+	Serial.print(tempril);
+	Serial.println(" C");
+
+}
 
