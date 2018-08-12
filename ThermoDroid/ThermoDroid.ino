@@ -57,6 +57,7 @@ bool LED2 = false;
 bool hightemp = false;
 bool lowtemp = false;
 bool blink = false;
+bool postFlag = false;
 String ipAddress = "0.0.0.0";
 unsigned long lastmillis = 0;
 unsigned long lastBlink = 0;
@@ -103,10 +104,12 @@ void setup()
 		
 	Serial.println("AT+CIPMUX=1");
 	while (!Serial.available());
+	while (atBusy());
 	Serial.println("AT+CIPSERVER=1,80");
 	while (!Serial.available());
+	while (atBusy());
 	
-	
+	getIpAddress();
 
 	display.setFont(System5x7);
 	display.clear();
@@ -119,7 +122,7 @@ void setup()
 	cmdTherm.addCommand("<T", syncpctime);          // Syc time
 	cmdTherm.addCommand("gtemp", gettemp);         // Get current Temperature
 	cmdTherm.addDefaultHandler(unrecognized);      // Handler for command that isn't matched  (says "What?")
-	Serial.println("Ready");
+	//Serial.println("Ready");
 			
 
 	readTemp();
@@ -134,6 +137,8 @@ void loop()
 {
 	
 	printTime();
+
+	if (postFlag && !atBusy()) postTemp();
 	
 	if (button.uniquePress()) {
 		
@@ -147,20 +152,8 @@ void loop()
 		readTemp();
 		printDate();
 		lastmillis = millis();
-		int startIP;
-		int endIP;
-		Serial.println("AT+CIFSR");
-		while (!Serial.available());
-		ipAddress = Serial.readString();
-		BtSerial.println(ipAddress);
-		startIP = ipAddress.indexOf("STAIP");
-		endIP = ipAddress.indexOf('"', startIP + 7);
-		ipAddress = ipAddress.substring(startIP + 7, endIP);
-		Serial.println("AT+CIPSEND=0,8");
-		while (!Serial.available());
-		Serial.println(tempril);
-		while (!Serial.available());
-
+		postFlag = true;
+				
 		if (t != tLast) {
 			tLast = t;
 			BtSerial << "<T " << tempril;
@@ -209,6 +202,41 @@ void loop()
 }
 
 
+void postTemp(){
+	
+	if (!atBusy()) Serial.println("AT+CIPSEND=0,7");
+	while (!Serial.available());
+	Serial.println(tempril);
+	postFlag = false;
+
+}
+
+void getIpAddress() {
+
+	int startIP;
+	int endIP;
+	Serial.println("AT+CIFSR");
+	while (!Serial.available());
+	ipAddress = Serial.readString();
+	BtSerial.println(ipAddress);
+	startIP = ipAddress.indexOf("STAIP");
+	endIP = ipAddress.indexOf('"', startIP + 7);
+	ipAddress = ipAddress.substring(startIP + 7, endIP);
+
+}
+
+bool atBusy() {
+	
+	String buffer;
+	if (!Serial.available()) return false;
+	buffer = Serial.readString();
+	if (buffer.indexOf("busy") > -1) {
+		return true;
+	}
+	
+	return false;
+}
+
 // Functions --------------------------------
 void printTime(){
 	
@@ -230,7 +258,7 @@ void printTime(){
 	
 	display.set1X();
 	display.setCursor(0, 7);
-	display.println("IP: " + ipAddress);
+	display.println(" IP: " + ipAddress);
 
 }
 
