@@ -57,6 +57,7 @@ bool LED2 = false;
 bool hightemp = false;
 bool lowtemp = false;
 bool blink = false;
+String ipAddress = "0.0.0.0";
 unsigned long lastmillis = 0;
 unsigned long lastBlink = 0;
 static time_t tLast;
@@ -84,14 +85,14 @@ void setup()
 	BtSerial.begin(9600);
 	sensor_inhouse.begin();
 		
-	Serial.println(year(RTC.get()));
-	if (year(RTC.get()) < 2015) Serial.println(F(__TIME__));
+	//Serial.println(year(RTC.get()));
+	//if (year(RTC.get()) < 2015) Serial.println(F(__TIME__));
 	//setSyncProvider() causes the Time library to synchronize with the
 	//external RTC by calling RTC.get() every five minutes by default.
 	setSyncProvider(RTC.get);
-	Serial << F("RTC Sync");
-	if (timeStatus() != timeSet) Serial << F(" FAIL!");
-	Serial << endl;
+	//Serial << F("RTC Sync");
+	//if (timeStatus() != timeSet) Serial << F(" FAIL!");
+	//Serial << endl;
 	adjustTime(2 * SECS_PER_HOUR);
 
 #if RST_PIN >= 0
@@ -99,6 +100,13 @@ void setup()
 #else // RST_PIN >= 0
 	display.begin(&Adafruit128x64, I2C_ADDRESS);
 #endif // RST_PIN >= 0
+		
+	Serial.println("AT+CIPMUX=1");
+	while (!Serial.available());
+	Serial.println("AT+CIPSERVER=1,80");
+	while (!Serial.available());
+	
+	
 
 	display.setFont(System5x7);
 	display.clear();
@@ -139,17 +147,32 @@ void loop()
 		readTemp();
 		printDate();
 		lastmillis = millis();
+		int startIP;
+		int endIP;
+		Serial.println("AT+CIFSR");
+		while (!Serial.available());
+		ipAddress = Serial.readString();
+		BtSerial.println(ipAddress);
+		startIP = ipAddress.indexOf("STAIP");
+		endIP = ipAddress.indexOf('"', startIP + 7);
+		ipAddress = ipAddress.substring(startIP + 7, endIP);
+		Serial.println("AT+CIPSEND=0,8");
+		while (!Serial.available());
+		Serial.println(tempril);
+		while (!Serial.available());
+
+		if (t != tLast) {
+			tLast = t;
+			BtSerial << "<T " << tempril;
+			BtSerial << "\n";
+		}
 
 	}
 
 	if ((millis() - lastBlink) >= blinkTime)
 	{
 		
-		if (t != tLast) {
-			tLast = t;
-			BtSerial << "<T " << tempril;
-			BtSerial << "\n";
-		}
+		
 
 
 		if (tempril < alarmlowtemp) lowtemp = true;
@@ -200,10 +223,14 @@ void printTime(){
 	display.print(":");
 	if (second(t)<10) display.print("0");
 	display.println(second(t));
-	display.setCursor(0, 6);
+	display.setCursor(0, 5);
 	display.print("Temp : ");
 	display.print(int(tempril));
 	display.println((char)128);
+	
+	display.set1X();
+	display.setCursor(0, 7);
+	display.println("IP: " + ipAddress);
 
 }
 
