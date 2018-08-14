@@ -103,14 +103,10 @@ void setup()
 #endif // RST_PIN >= 0
 		
 	Serial.println("AT+CIPMUX=1");
-	while (!Serial.available());
-	while (atBusy());
+	atResponse();
 	Serial.println("AT+CIPSERVER=1,80");
-	while (!Serial.available());
-	while (atBusy());
-	
+	atResponse();
 	getIpAddress();
-
 	display.setFont(System5x7);
 	display.clear();
 
@@ -138,7 +134,7 @@ void loop()
 	
 	printTime();
 
-	if (postFlag && !atBusy()) postTemp();
+	if (postFlag) postTemp();
 	
 	if (button.uniquePress()) {
 		
@@ -204,11 +200,13 @@ void loop()
 
 void postTemp(){
 	
-	if (!atBusy()) Serial.println("AT+CIPSEND=0,7");
-	while (!Serial.available());
+	Serial.println("AT+CIPSEND=0,7");
+	String response = atResponse();
+	if (response == ">") {
 	Serial.println(tempril);
+	atResponse();
 	postFlag = false;
-
+	}
 }
 
 void getIpAddress() {
@@ -216,25 +214,30 @@ void getIpAddress() {
 	int startIP;
 	int endIP;
 	Serial.println("AT+CIFSR");
-	while (!Serial.available());
-	ipAddress = Serial.readString();
+	
+	ipAddress = atResponse();
 	BtSerial.println(ipAddress);
 	startIP = ipAddress.indexOf("STAIP");
 	endIP = ipAddress.indexOf('"', startIP + 7);
 	ipAddress = ipAddress.substring(startIP + 7, endIP);
+	
 
 }
 
-bool atBusy() {
+String atResponse() {
 	
 	String buffer;
-	if (!Serial.available()) return false;
-	buffer = Serial.readString();
+	while (!Serial.available());
+	while (Serial.available()) buffer+= Serial.readString();
+
 	if (buffer.indexOf("busy") > -1) {
-		return true;
+		return "busy";
 	}
-	
-	return false;
+	else if (buffer.indexOf("SEND OK") > -1) return "OK";
+	else if (buffer.indexOf(">") > -1) return ">";
+	else if (buffer.indexOf("OK") > -1) return buffer;
+		
+	return buffer;
 }
 
 // Functions --------------------------------
