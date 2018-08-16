@@ -46,7 +46,7 @@ Button button = Button(Button1, BUTTON_PULLUP);
 // Variables declaration
 
 float tempril;
-int alarmhightemp = 25;
+int alarmhightemp = 32;
 int alarmlowtemp = 10;
 int ledstat1 = LOW;
 int ledstat2 = LOW;
@@ -55,7 +55,7 @@ int blinkTime = 1000;
 bool LED1 = false;
 bool LED2 = false;
 bool hightemp = false;
-bool lowtemp = false;
+bool connected = false;
 bool blink = false;
 bool postFlag = false;
 String ipAddress = "0.0.0.0";
@@ -102,6 +102,8 @@ void setup()
 	display.begin(&Adafruit128x64, I2C_ADDRESS);
 #endif // RST_PIN >= 0
 		
+	//Serial.println("AT+RST");
+	//atResponse();
 	Serial.println("AT+CIPMUX=1");
 	atResponse();
 	Serial.println("AT+CIPSERVER=1,80");
@@ -164,11 +166,11 @@ void loop()
 		
 
 
-		if (tempril < alarmlowtemp) lowtemp = true;
-		else lowtemp = false;
+		//if (tempril < alarmlowtemp) lowtemp = true;
+		//else lowtemp = false;
 		if (tempril > alarmhightemp) hightemp = true;
 		else hightemp = false;
-		if (LED1 && lowtemp && ledstat1 == LOW)
+		if (LED1 && connected && ledstat1 == LOW)
 		{
 			ledstat1 = HIGH;
 		}
@@ -194,14 +196,26 @@ void loop()
 	digitalWrite(ledPin2, ledstat2);
 
 	cmdTherm.readSerial();
-	
+		
 }
 
 
 void postTemp(){
 	
+	String response;
+
+	Serial.println("AT+CIPSTATUS");
+	response = atResponse();
+	if (response.indexOf("STATUS:4") > -1) { 
+		postFlag = false;
+		connected = false;
+		return; 
+	}
+
+	connected = true;
+	
 	Serial.println("AT+CIPSEND=0,7");
-	String response = atResponse();
+	response = atResponse();
 	if (response == ">") {
 	Serial.println(tempril);
 	atResponse();
@@ -214,9 +228,7 @@ void getIpAddress() {
 	int startIP;
 	int endIP;
 	Serial.println("AT+CIFSR");
-	
 	ipAddress = atResponse();
-	BtSerial.println(ipAddress);
 	startIP = ipAddress.indexOf("STAIP");
 	endIP = ipAddress.indexOf('"', startIP + 7);
 	ipAddress = ipAddress.substring(startIP + 7, endIP);
@@ -225,19 +237,24 @@ void getIpAddress() {
 }
 
 String atResponse() {
-	
-	String buffer;
-	while (!Serial.available());
-	while (Serial.available()) buffer+= Serial.readString();
 
-	if (buffer.indexOf("busy") > -1) {
-		return "busy";
-	}
-	else if (buffer.indexOf("SEND OK") > -1) return "OK";
-	else if (buffer.indexOf(">") > -1) return ">";
-	else if (buffer.indexOf("OK") > -1) return buffer;
+	unsigned long serialTimeOut = millis();
+	String buffer;
+	while (!Serial.available()) {
+
+		if ((millis() - serialTimeOut) >= 10000) return "ERR";
 		
-	return buffer;
+	}
+
+	buffer = Serial.readString();
+			
+	if (buffer.indexOf(">") > -1) return ">";
+	if (buffer.indexOf("SEND OK") > -1) return "OK";
+	if (buffer.indexOf("OK\r\n") > -1) return buffer;
+	if (buffer.indexOf("ERROR\r\n") > -1) return "ERR";
+	if (buffer.indexOf("busy") > -1) return "busy";
+
+	return "ERR";
 }
 
 // Functions --------------------------------
